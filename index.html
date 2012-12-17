@@ -1,0 +1,331 @@
+<!--
+Copyright 2012 The Infinit.e Open Source Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		<title>IKANOW.Data.Browser</title>
+		
+	    <link href="lib/bootstrap/css/bootstrap.css" rel="stylesheet">
+	    <link href="lib/base.css" rel="stylesheet">
+	    <link href="lib/bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+	    
+	    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+	    <!--[if lt IE 9]>
+	      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+	    <![endif]-->
+	    
+	    <script type="text/javascript" src="lib/bootstrap/js/bootstrap.min.js"></script>
+	    <script type="text/javascript" src="lib/bootstrap/js/jquery-latest.js"></script>
+		<script src="http://code.highcharts.com/highcharts.js"></script>
+		<script src="http://code.highcharts.com/modules/exporting.js"></script>
+
+	</head>
+	<body>
+	
+	<div class="container">
+		<div class="main-div">
+			<table width="100%">
+			<tr>
+				<td width="100%">
+					<img src="image/ikanow.data.browser-logo.png">
+				</td>
+			</tr>
+			<tr style="background-color:#000000; line-height: 0px; padding: 0px;">
+				<td width="100%" align="center">
+					<div class="btn-toolbar">
+ 						<div class="btn-group">
+    						<button class="btn btn-inverse" id="autoBtn" style="width: 285px;">Automotive News</button>
+  							<button class="btn btn-inverse" id="bicycleBtn" style="width: 285px;">Bicycling News</button>
+  							<button class="btn btn-inverse" id="electionBtn" style="width: 285px;">Political News</button>
+  							<button class="btn btn-inverse" id="newsBtn" style="width: 285px;">General News</button>
+  						</div>
+					</div>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td>
+					<table cellpadding="8">
+					<tr valign="top">
+						<td width="50%">
+							<div id="docsDisplayedDiv" style="height:18px; width:100%; color:#ffffff; text-align:center; 
+								font-size:smaller; background-color:#999999; padding:1px"></div>
+							<div id="documentDiv" style="width:100%; border:1px solid #CCCCCC;"></div>
+							<div id="pagerDiv" style="height:18px; width:100%; color:#ffffff; text-align:center; 
+								font-size:smaller; background-color:#999999; padding:1px"></div>
+						</td>
+						<td width="560px">
+							<div style="height:18px; width:560px; color:#ffffff; text-align:center; font-size:smaller; 
+								background-color:#000000; padding:1px">Top 100 Geotags by Significance</div>
+							<div id="map_canvas" style="height:300px; width:560px; border:1px solid;"></div>
+							<div style="height:6px; width:560px;"></div>
+							
+							<div style="height:18px; width:560px; color:#ffffff; text-align:center; font-size:smaller; 
+								background-color:#000000; padding:1px">Top 15 People Ranked by Significance</div>
+							<div id="bar_chart" style="height:300px; width:560px; border:1px solid;"></div>
+							<div style="height:6px; width:560px;"></div>
+							
+							<div style="height:18px; width:560px; color:#ffffff; text-align:center; font-size:smaller; 
+								background-color:#000000; padding:1px">Graph</div>
+							<canvas id="link_graph" width="560px" height="300px" style="border:1px solid;"></canvas>
+							
+						</td>
+					</tr>
+					</table>
+				</td>
+			</tr>
+			</table>
+		</div>
+	</div>
+
+	</body>
+</html>
+
+
+<!---------- Javascript Code ---------->
+<script>
+	
+	var apiRoot = "http://ikanow.api.mashery.com/";
+	var apiKey = "dzetmk5f5bkx6sj935zjfqpe";
+	var docsToDisplay = 20;
+	var docsToRetrieve = 100;
+	var map = null;
+	var locations = null;
+	var people = null;
+	var topPeople = null;
+	var peopleNames = null;
+	var peopleSig = null;
+	var places = null;
+	var things = null;
+	
+	
+	$(document).ready(function () {
+		querySourcesByCommunity("503412f5e4b060be9b30c363");
+		$("#autoBtn").click(function() { querySourcesByCommunity("50b8fcefe4b024bdb6b48c95"); });
+		$("#bicycleBtn").click(function() { querySourcesByCommunity("50b7a53fe4b024bdb6b48c82"); });
+		$("#electionBtn").click(function() { querySourcesByCommunity("50365c5ce4b0bb23272794b3"); });
+		$("#newsBtn").click(function() { querySourcesByCommunity("503412f5e4b060be9b30c363"); });
+	});
+
+
+	
+	
+    
+	//
+	function initializeMap() {
+    	var mapOptions = {
+        	zoom: 1,
+        	disableDefaultUI: true,
+       		center: new google.maps.LatLng( 20, 0 ),
+        	mapTypeId: google.maps.MapTypeId.ROADMAP
+      	};
+      	map = new google.maps.Map(document.getElementById('map_canvas'), mapOptions);
+
+		for (var i=0; i < locations.length; i++) {
+			var marker = new google.maps.Marker({
+			      position: new google.maps.LatLng( locations[i].geoTag.lat , locations[i].geoTag.lon ),
+			      map: map,
+			      title: locations[i].name
+			  });
+		}
+    }
+    
+    function loadMap() {
+    	$('.googleScript').remove();
+    	var script = document.createElement("script");
+    	script.setAttribute('id', 'googleScript');
+    	script.type = "text/javascript";
+    	script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAZprFxJatjedBeqcqI_sSt5tdZ8VK2ooA&sensor=false&callback=initializeMap";
+    	document.body.appendChild(script);
+	}
+
+	
+	// querySourcesByCommunity -
+	// Each topic header represents a community in Infinit.e, clicking on a topic causes
+	// the application to do an * query on all of the sources in the corresponding community
+	function querySourcesByCommunity( communityId )
+	{
+		// Clear the documentDiv and start over...
+		$("#documentDiv").html("");
+		var documentDivHtml = "";
+		
+		var apiAddress = apiRoot + "api/knowledge/document/query/" + communityId;
+		var apiData = "infinite_api_key=" + apiKey + "&output.docs.numReturn=" + docsToRetrieve + "&score.sigWeight=0&score.relWeight=0";
+		
+		var response = $.ajax({
+			type: 'GET',
+			url: apiAddress,
+			data: apiData,
+			async: true,
+			contentType: "application/json",
+			dataType: 'jsonp',
+			jsonp: 'jsonp'
+		});
+		response.done(function(msg) {
+			if (msg.response != null && msg.response.success == true) {
+				if (msg.response.success == true) {
+					people = new Array();
+					places = new Array();
+					things = new Array();
+					geoObjects = new Array();
+					
+					var stats = msg.stats;
+					var totalResults = stats.found;
+					var startPos = stats.start + 1;
+					var documents = msg.data;
+					var iterate = (documents.length < docsToDisplay) ? documents.length : docsToDisplay;
+					
+					for (var i = 0; i < documents.length; i++) {
+						if (i < iterate) { documentDivHtml += createDocumentRow(documents[i]); }
+						addPeople(documents[i]);
+						addPlaces(documents[i]);
+					}
+					$("#docsDisplayedDiv").html("Displaying 1 - 20 of " + totalResults + " Documents");
+					$("#documentDiv").html(documentDivHtml);
+					
+					getTopLocations();
+					loadMap();
+					getTopPeople();
+					drawChart();
+				}
+			}
+		});
+		
+	}
+	
+	
+	// getTopLocations -
+	// Adds up to 25 lat/lon pairs to our google map based on signifigance
+	function getTopLocations() {
+		if (places.length > 0) {
+			sortByProperty( places, 'signifigance', true );
+			var endNumber = (places.length < 100) ? places.length : 100;
+			locations = new Array();
+			for (var i=0; i < endNumber; i++) {
+				locations.push( places[i] );
+			}
+		}
+	}
+
+	
+	// sortByProperty -
+	function sortByProperty( arr, property, descending )
+	{
+	  arr.sort( function( a, b )
+	  {
+	    return Boolean( descending )
+	      ? b[property] - a[property]
+	      : a[property] - b[property]
+	  } );
+	}
+	
+	
+	// createDocumentRow -
+	// Creates one row in a table for each article shown in the page
+	function createDocumentRow( document ) {
+		var displayUrl = (document.url.length > 35) ? document.url.substring(0,35) + "..." : document.url;
+		var rowHtml = "<tr><td>";
+		rowHtml += "<a href='" + document.url + "' target='blank'><div class='document-title'>" + document.title + "</div></a>";
+		rowHtml += "<div class='document-date'>Published: " + document.publishedDate + "</div>";
+		rowHtml += "<strong>" + document.source[0] + "</strong> " + document.description + "<br />";
+		rowHtml += "<div class='document-url'>Source URL: <a href='" + document.url + "' target='blank'>" + displayUrl + "</a></div><br />";
+		rowHtml += "</td></tr>";
+		return rowHtml;
+	}
+	
+	// addPlaces -
+	function addPlaces( document ) {
+		for (var i=0; i < document.entities.length; i++) {
+			if (document.entities[i].geotag != null) {
+				var newPlace = createEntity( document.entities[i] );
+				if ( places.length == 0 ) { places.push( newPlace ); }
+				else
+				{ 	// Only take new places, don't add duplicates
+					var result = $.grep(places, function(e) { return e.name == newPlace.name; } );
+					if (result != null && result.length == 0) { places.push( newPlace ); }
+				}
+			}
+		}
+	}
+	
+	// addPeople -
+	function addPeople( document ) {
+		for (var i=0; i < document.entities.length; i++) {
+			if (document.entities[i].type == "Person") {
+				var newPerson = createEntity( document.entities[i] );
+				
+				if ( people.length == 0 ) { people.push( newPerson ); }
+				else
+				{ 	// Only take new places, don't add duplicates
+					var result = $.grep(people, function(e) { return e.name == newPerson.name; } );
+					if (result != null && result.length == 0) { people.push( newPerson ); }
+				}
+			}
+		}
+	}
+	
+	// getTopPeople -
+	function getTopPeople() {
+		if (people.length > 0) {
+			sortByProperty( people, 'signifigance', true );
+			var endNumber = (people.length < 15) ? people.length : 15;
+
+			peopleNames = new Array();
+			peopleSig = new Array();
+			for (var i=0; i < endNumber; i++) {
+				peopleNames.push( people[i].name );
+				peopleSig.push( people[i].signifigance );
+			}
+		}
+	}
+	
+	// createEntity -
+	function createEntity( rawEntity ) {
+		var entity = new Object();
+		entity.name = rawEntity.disambiguated_name;
+		entity.geoTag = rawEntity.geotag;
+		entity.linkData = rawEntity.linkData;
+		entity.dimension = rawEntity.dimension;
+		entity.type = rawEntity.type;
+		entity.signifigance = rawEntity.datasetSignificance;
+		return entity;
+	}
+	
+	
+	var chart;
+	// drawChart - 
+	function drawChart() {
+		chart = new Highcharts.Chart({
+            chart: { renderTo: 'bar_chart', type: 'bar' },
+            title: { text: '' },
+            xAxis: { categories: peopleNames, title: { text: null } },
+            yAxis: {
+                min: 0,
+                title: { text: '', align: 'high' },
+                labels: { overflow: 'justify' }
+            },
+            tooltip: { formatter: function() { return this.y; } },
+            plotOptions: { bar: { dataLabels: { enabled: true } } },
+            credits: { enabled: false },
+            series: [{ name: 'Signifigance', data: peopleSig }]
+        });
+	}
+	
+
+
+</script>
+
