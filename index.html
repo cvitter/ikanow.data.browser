@@ -29,6 +29,7 @@ limitations under the License.
 	      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
 	    <![endif]-->
 	    
+	    <script type="text/javascript" src="lib/settings.js"></script>
 	    <script type="text/javascript" src="lib/bootstrap/js/bootstrap.min.js"></script>
 	    <script type="text/javascript" src="lib/bootstrap/js/jquery-latest.js"></script>
 		<script src="http://code.highcharts.com/highcharts.js"></script>
@@ -100,7 +101,10 @@ limitations under the License.
 <script>
 	
 	var apiRoot = "http://ikanow.api.mashery.com/";
+<<<<<<< HEAD
 	var apiKey = "";
+=======
+>>>>>>> Update with settings
 	var docsToDisplay = 20;
 	var docsToRetrieve = 100;
 	var map = null;
@@ -121,9 +125,6 @@ limitations under the License.
 		$("#newsBtn").click(function() { querySourcesByCommunity("503412f5e4b060be9b30c363"); });
 	});
 
-
-	
-	
     
 	//
 	function initializeMap() {
